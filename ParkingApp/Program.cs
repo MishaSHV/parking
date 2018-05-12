@@ -2,6 +2,9 @@
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ParkingApp
 {
@@ -34,10 +37,83 @@ namespace ParkingApp
 
     public sealed class Parking
     {
-        private static readonly Lazy<Parking> lazy = new Lazy<Parking>(() => new Parking(new Settings(100,0.2M)  ) );
+        private static readonly Lazy<Parking> lazy = new Lazy<Parking>(() => new Parking(new Settings(100,1.2M)  ) );
         ArrayList ListCar;
-        List<Transaction> ListTransaction;
-        decimal Balance { get; set;}
+        Queue<Transaction> Transactions=new Queue<Transaction>();
+
+        // Token for cancelation
+        CancellationTokenSource source = new CancellationTokenSource();
+        IObservable<long> observable;// = Observable.Interval(settings_);//
+
+        private readonly System.Object lockThis = new System.Object();
+
+        private void CreatePeriodicTask(CancellationTokenSource s,TimeSpan ts)
+        {
+            observable = Observable.Interval(ts);
+            // Create task to execute.
+            Action action = (() => WriteOffFundsfromCars());
+            //Action resumeAction = (() => Console.WriteLine("Second action started at {0}", DateTime.Now));
+
+            // Subscribe the obserable to the task on execution.
+            observable.Subscribe(x => {
+                Task task = new Task(action);
+                task.Start();
+               // task.ContinueWith(c => resumeAction());
+            }, s.Token);
+           
+        }
+
+        private void PrintTHistory()
+        {
+            DelTransForMin();
+            lock (lockThis)
+            {
+                foreach(Transaction t in Transactions)
+                {
+                    Console.WriteLine($"{t.DTtransaction} {t.CarId} {t.AmountMoney}");
+                }
+            }
+        }
+        private void AddTransaction(Transaction t)
+        {
+            lock(lockThis)
+            {
+                Transactions.Enqueue(t);
+            }
+        }
+        private void DelTransForMin()
+        {
+
+            TimeSpan tempTs = new TimeSpan(0, 1, 0);
+            lock (lockThis)
+            {
+                    while ( (Transactions.Count != 0)&&(Transactions.Peek().isOlderThan(tempTs)) )
+                    {
+                        Transactions.Dequeue();
+                    }
+            }
+        }
+        private void WriteOffFundsfromCars()
+        {
+            foreach(Car c in ListCar)
+            {
+                if(c!=null)
+                {
+                    decimal needFunds = (decimal)settings_.TimeOut.TotalSeconds *settings_.ParkingPriceDictionary[c.Ctype];
+                    if (c.Balance< needFunds)
+                    {
+                        needFunds = needFunds*settings_.Fine;
+                        
+                    }
+                    c.Balance -= needFunds;
+                    Balance+= needFunds;
+                    AddTransaction(new Transaction(DateTime.Now, c.Id, needFunds * settings_.Fine));
+                    //Console.WriteLine("Add Transaction");
+                }
+            }
+        }
+        decimal Balance { get; set; } = 0.0M;
+
         private readonly Settings settings_;
         private Parking(Settings s)
         {
@@ -47,6 +123,8 @@ namespace ParkingApp
 
             ListCar = ArrayList.FixedSize(tempList);
             settings_ = s;
+            //
+            CreatePeriodicTask(source,settings_.TimeOut);
         }
         public static Parking Instance{ get { return lazy.Value; } }
         //main func
@@ -195,6 +273,13 @@ namespace ParkingApp
                 }
             }
         }
+        private int TotalAvFreeSpace()
+        {
+            int count = (from Car c in ListCar
+                        where c == null
+                        select c).Count();
+            return count;
+        }
         public void Process()
         {
             Menu Menu=new Menu();
@@ -224,10 +309,10 @@ namespace ParkingApp
                             Menu.Clear();
                             Menu.Add(new MenuItem(Menu.Count, "Add/delete car from parking", () => { CurrentMenu = Menus.AddDelCar; }));
                             Menu.Add(new MenuItem(Menu.Count, "Add car balance", () => { AddCarBalance(); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { Console.WriteLine("The transaction history displayed"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine("The total revenue is: ..."); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine($"The total available parking spaces is: {settings_.ParkingSpace}"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { Console.WriteLine("Formating output Transaction.log ..."); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { Menu.isNeedChange = true; PrintTHistory(); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine($"The total revenue is: {Balance}"); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine($"The total available parking spaces is: {TotalAvFreeSpace()}"); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { Menu.isNeedChange = true; Console.WriteLine("Formating output Transaction.log ..."); }));
                             Menu.Add(new MenuItem(Menu.Count, "Options", () => { CurrentMenu = Menus.Options; }));
                             Menu.Add(new MenuItem(Menu.Count, "Exit", () => { isContinue = false;  }));
 
@@ -359,8 +444,18 @@ namespace ParkingApp
     }
     class Transaction
     {
-        public DateTime DTtransaction { get; set; }
-        public int CarId { get; set; }
-        public decimal AmountMoney { get; set; }
+        public DateTime DTtransaction { get;private set; }
+        public int CarId { get;private set; }
+        public decimal AmountMoney { get;private set; }
+        public Transaction(DateTime date,int Id,decimal money)
+        {
+            DTtransaction = date;
+            CarId = Id;
+            AmountMoney = money;
+        }
+        public bool isOlderThan(TimeSpan ts)
+        {
+            return ((DateTime.Now - ts) > DTtransaction);
+        }
     }
 }
