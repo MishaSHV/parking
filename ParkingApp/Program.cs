@@ -43,6 +43,8 @@ namespace ParkingApp
 
         // Token for cancelation
         CancellationTokenSource source = new CancellationTokenSource();
+        CancellationTokenSource source2 = new CancellationTokenSource();
+
         IObservable<long> observable;// = Observable.Interval(settings_);//
 
         private readonly System.Object lockThis = new System.Object();
@@ -63,6 +65,23 @@ namespace ParkingApp
            
         }
 
+        private void CreateWriteLogTask(CancellationTokenSource s, TimeSpan ts)
+        {
+            IObservable<long> observableLog;
+            observableLog = Observable.Interval(ts);
+            // Create task to execute.
+            Action action = (() => WriteTLogFile());
+            //Action resumeAction = (() => Console.WriteLine("Second action started at {0}", DateTime.Now));
+
+            // Subscribe the obserable to the task on execution.
+            observableLog.Subscribe(x => {
+                Task task = new Task(action);
+                task.Start();
+                // task.ContinueWith(c => resumeAction());
+            }, s.Token);
+
+        }
+
         private void PrintTHistory()
         {
             DelTransForMin();
@@ -71,6 +90,30 @@ namespace ParkingApp
                 foreach(Transaction t in Transactions)
                 {
                     Console.WriteLine($"{t.DTtransaction} {t.CarId} {t.AmountMoney}");
+                }
+            }
+        }
+        void WriteTLogFile()
+        {
+            using (System.IO.StreamWriter file =
+            new System.IO.StreamWriter($@"{AppDomain.CurrentDomain.BaseDirectory}/Transactions.log", true))
+            {
+                DelTransForMin();
+                lock (lockThis)
+                {
+                    if(Transactions.Count!=0)
+                    {
+                        DateTime dt = Transactions.Peek().DTtransaction;
+                        decimal sum=0.0M;
+                        foreach (Transaction t in Transactions)
+                        {
+                            sum+=t.AmountMoney;
+                        }
+                        //Console.WriteLine("Write to file");
+                        file.WriteLine($"{dt} Amount of money per minute {sum}");
+
+                    }
+                    
                 }
             }
         }
@@ -125,6 +168,7 @@ namespace ParkingApp
             settings_ = s;
             //
             CreatePeriodicTask(source,settings_.TimeOut);
+            CreateWriteLogTask(source2, new TimeSpan(0, 1, 0));
         }
         public static Parking Instance{ get { return lazy.Value; } }
         //main func
@@ -309,10 +353,10 @@ namespace ParkingApp
                             Menu.Clear();
                             Menu.Add(new MenuItem(Menu.Count, "Add/delete car from parking", () => { CurrentMenu = Menus.AddDelCar; }));
                             Menu.Add(new MenuItem(Menu.Count, "Add car balance", () => { AddCarBalance(); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { Menu.isNeedChange = true; PrintTHistory(); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { PrevMenu = Menus.AddDelCar; PrintTHistory(); }));
                             Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine($"The total revenue is: {Balance}"); }));
                             Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine($"The total available parking spaces is: {TotalAvFreeSpace()}"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { Menu.isNeedChange = true; Console.WriteLine("Formating output Transaction.log ..."); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { PrevMenu = Menus.AddDelCar; Console.WriteLine("Formating output Transaction.log ..."); }));
                             Menu.Add(new MenuItem(Menu.Count, "Options", () => { CurrentMenu = Menus.Options; }));
                             Menu.Add(new MenuItem(Menu.Count, "Exit", () => { isContinue = false;  }));
 
