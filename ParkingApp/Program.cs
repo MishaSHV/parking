@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace ParkingApp
@@ -7,7 +9,6 @@ namespace ParkingApp
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!123");
             Parking.Instance.Process();
         }
     }
@@ -28,12 +29,17 @@ namespace ParkingApp
     public sealed class Parking
     {
         private static readonly Lazy<Parking> lazy = new Lazy<Parking>(() => new Parking(new Settings(100,0.2M)  ) );
-        List<Car> ListCar;
+        ArrayList ListCar;
         List<Transaction> ListTransaction;
         decimal Balance { get; set;}
         private readonly Settings settings_;
         private Parking(Settings s)
         {
+            ArrayList tempList = new ArrayList();
+            for (int i = 0; i < s.ParkingSpace; ++i)
+                tempList.Add(null);
+
+            ListCar = ArrayList.FixedSize(tempList);
             settings_ = s;
         }
         public static Parking Instance{ get { return lazy.Value; } }
@@ -78,11 +84,38 @@ namespace ParkingApp
         private void AddCar()
         {
 
-            int Id;
-            if (ReadIdDialog(out Id))
-            {
                 //processing
-            }
+                int index = ListCar.IndexOf(null);
+                if(index!=-1)
+                {
+                    int maxId = 0;
+                    foreach(Car c in ListCar)
+                    {
+                        if(c!=null)
+                            maxId = Math.Max(maxId, c.Id);
+                    }
+
+                    Menu selectCarType = new Menu();
+                    CarType ct = CarType.Bus; ;
+
+                    selectCarType.Add(new MenuItem(selectCarType.Count, $"{CarType.Bus:G}", () => { ct = CarType.Bus; }));
+                    selectCarType.Add(new MenuItem(selectCarType.Count, $"{CarType.Motocycle:G}", () => { ct = CarType.Motocycle; }));
+                    selectCarType.Add(new MenuItem(selectCarType.Count, $"{CarType.Passenger:G}", () => { ct = CarType.Passenger; }));
+                    selectCarType.Add(new MenuItem(selectCarType.Count, $"{CarType.Passenger:G}", () => { ct = CarType.Passenger; }));
+                    selectCarType.Add(new MenuItem(selectCarType.Count, $"{CarType.Truck:G}", () => { ct = CarType.Truck; }));
+
+                   // Console.WriteLine("Select your car type:");
+                    selectCarType.DisplayMenuItems();
+
+                    selectCarType.SelectMenuItemDialog("Select your car type:");
+                    selectCarType.ProcessMenuItem();
+
+                    ListCar[index] = new Car(maxId+1, ct);
+
+                    Console.WriteLine($"Your Id is: {maxId + 1}, and your place number (start from 1) is: {index+1}");
+
+                }
+
         }
         private void DeleteCar()
         {
@@ -209,12 +242,16 @@ namespace ParkingApp
                 mi.Print();
             }
         }
-        public void SelectMenuItemDialog()
+        public void SelectMenuItemDialog(string message= "\nSelect menu item by menu item number")
         {
-            Console.WriteLine("\nSelect menu item by menu item number");
+            Console.WriteLine(message);
             if( !Int32.TryParse(Console.ReadLine(), out selectedMenuItem) )
             {
                 selectedMenuItem = -1;
+                Console.WriteLine("\nWrong menu item number");
+            }
+            else if(selectedMenuItem > (ListMenu.Count-1) )
+            {
                 Console.WriteLine("\nWrong menu item number");
             }
         }
@@ -245,9 +282,14 @@ namespace ParkingApp
 
     class Car
     {
-        public int Id { get; set; }
+        public int Id { get;private  set; }
         public decimal Balance => 0;
-        public CarType Ctype { get; set; }
+        public CarType Ctype { get;private set; }
+        public Car(int Id,CarType ct)
+        {
+            this.Id = Id;
+            Ctype = ct;
+        }
     }
 
     enum CarType
