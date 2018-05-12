@@ -14,16 +14,20 @@ namespace ParkingApp
 
     class Settings
     {
-        public TimeSpan TimeOut { get; set;}
+        public TimeSpan TimeOut { get; set; } = new TimeSpan(0, 0, 1);
         //public Dictionary
-        public int ParkingSpace => 0;
-        public decimal Fine => 0;
+        public int ParkingSpace { get; private set; }
+        public decimal Fine { get; private set; }
+        public Settings(int pSpaces,decimal f)
+        {
+            ParkingSpace = pSpaces;
+            Fine = f;
+        }
     }
 
     public sealed class Parking
     {
-        private static readonly Lazy<Parking> lazy = new Lazy<Parking>( () => new Parking( new Settings() ) );
-        int withdrawPeriod = 1;
+        private static readonly Lazy<Parking> lazy = new Lazy<Parking>(() => new Parking(new Settings(100,0.2M)  ) );
         List<Car> ListCar;
         List<Transaction> ListTransaction;
         decimal Balance { get; set;}
@@ -43,8 +47,8 @@ namespace ParkingApp
             {
                 if(1<=period)
                 {
-                    withdrawPeriod = period;
-                    Console.WriteLine($"New withdraw period: {period} sec");
+                    settings_.TimeOut = new TimeSpan(0, 0, period);
+                    Console.WriteLine($"New withdraw period: {settings_.TimeOut} sec");
                 }
                 else
                 {
@@ -127,8 +131,8 @@ namespace ParkingApp
                             Menu.Add(new MenuItem(Menu.Count, "Add/delete car from parking", () => { CurrentMenu = Menus.AddDelCar; }));
                             Menu.Add(new MenuItem(Menu.Count, "Add car balance", () => { AddCarBalance(); }));
                             Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { Console.WriteLine("The transaction history displayed"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine("The total revenue displayed"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine("The total available parking spaces is ..."); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine("The total revenue is: ..."); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine($"The total available parking spaces is: {settings_.ParkingSpace}"); }));
                             Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { Console.WriteLine("Formating output Transaction.log ..."); }));
                             Menu.Add(new MenuItem(Menu.Count, "Options", () => { CurrentMenu = Menus.Options; }));
                             Menu.Add(new MenuItem(Menu.Count, "Exit", () => { isContinue = false;  }));
@@ -161,7 +165,7 @@ namespace ParkingApp
                         if (Menu.isNeedChange)
                         {
                             Menu.Clear();
-                            Menu.Add(new MenuItem(Menu.Count, "Print money withdraw period, sec", () => { Console.WriteLine($"Withdraw period: {withdrawPeriod} sec"); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Print money withdraw period, sec", () => { Console.WriteLine($"Withdraw period: {settings_.TimeOut} sec"); }));
                             Menu.Add(new MenuItem(Menu.Count, "Setup money withdraw period, sec", () => { SetupWithdrawPeriod(); }));
                             Menu.Add(new MenuItem(Menu.Count, "Previous menu", () => { CurrentMenu = Menus.Initial; }));
                             Menu.Add(new MenuItem(Menu.Count, "Exit", () => { isContinue = false; }));
@@ -199,6 +203,7 @@ namespace ParkingApp
         }
         public void DisplayMenuItems()
         {
+            Console.WriteLine();
             foreach(var mi in ListMenu)
             {
                 mi.Print();
