@@ -117,6 +117,18 @@ namespace ParkingApp
                 }
             }
         }
+        void ReadTLogFile()
+        {
+            using (System.IO.StreamReader file =
+            new System.IO.StreamReader($@"{AppDomain.CurrentDomain.BaseDirectory}/Transactions.log"))
+            {
+                string line;
+                while ((line = file.ReadLine()) != null)
+                {
+                    Console.WriteLine(line);
+                }
+            }
+        }
         private void AddTransaction(Transaction t)
         {
             lock(lockThis)
@@ -356,7 +368,7 @@ namespace ParkingApp
                             Menu.Add(new MenuItem(Menu.Count, "Display transaction history for the last minute", () => { PrevMenu = Menus.AddDelCar; PrintTHistory(); }));
                             Menu.Add(new MenuItem(Menu.Count, "Derive total parking revenue", () => { Console.WriteLine($"The total revenue is: {Balance}"); }));
                             Menu.Add(new MenuItem(Menu.Count, "Display the number of available parking spaces", () => { Console.WriteLine($"The total available parking spaces is: {TotalAvFreeSpace()}"); }));
-                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { PrevMenu = Menus.AddDelCar; Console.WriteLine("Formating output Transaction.log ..."); }));
+                            Menu.Add(new MenuItem(Menu.Count, "Display Transactions.log", () => { PrevMenu = Menus.AddDelCar; ReadTLogFile(); }));
                             Menu.Add(new MenuItem(Menu.Count, "Options", () => { CurrentMenu = Menus.Options; }));
                             Menu.Add(new MenuItem(Menu.Count, "Exit", () => { isContinue = false;  }));
 
