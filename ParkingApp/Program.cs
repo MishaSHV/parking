@@ -16,13 +16,19 @@ namespace ParkingApp
     class Settings
     {
         public TimeSpan TimeOut { get; set; } = new TimeSpan(0, 0, 1);
-        //public Dictionary
+        public readonly Dictionary<CarType,decimal> ParkingPriceDictionary=new Dictionary<CarType, decimal>();//price per second
         public int ParkingSpace { get; private set; }
         public decimal Fine { get; private set; }
         public Settings(int pSpaces,decimal f)
         {
             ParkingSpace = pSpaces;
             Fine = f;
+            decimal dp = 0.1M;
+            foreach(CarType ct in Enum.GetValues(typeof(CarType)) )
+            {
+                ParkingPriceDictionary[ct] = 0.5M - dp ;
+                dp += dp;
+            }
         }
     }
 
@@ -117,21 +123,68 @@ namespace ParkingApp
                 }
 
         }
+
+        private bool FindCarIndexById(int Id,out int index)
+        {
+            int i = 0;
+            foreach(Car c in ListCar)
+            {
+                if(c?.Id==Id)
+                {
+                    index = i;
+                    return true;
+                }
+                ++i;
+            }
+            index = -1;
+            return false;
+        }
         private void DeleteCar()
         {
-            int Id;
+            int Id,index;
             if (ReadIdDialog(out Id))
             {
                 //processing
+                if(FindCarIndexById(Id,out index))
+                {
+                    ListCar[index] = null;
+                }
+                else
+                {
+                    Console.WriteLine("Your car was not found by id");
+                }
             }
         }
         private void AddCarBalance()
         {
-            int Id;
+            int Id,index;
             if (ReadIdDialog(out Id))
             {
                 //processing
-
+                if (FindCarIndexById(Id, out index))
+                {
+                    int paid;
+                    Console.WriteLine("Your amount paid is:");
+                    if (!Int32.TryParse(Console.ReadLine(), out paid))
+                    {
+                        Console.WriteLine("Wrong paid value");
+                        return;
+                    }
+                    if (paid > 0)
+                    {
+                        ((Car)ListCar[index]).Balance +=paid;
+                        Console.WriteLine($"Your car balance is: {((Car)ListCar[index]).Balance}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("The amount paid must be greater than zero");
+                    }
+                        
+                }
+                else
+                {
+                    Console.WriteLine("Your car was not found by id");
+                }
             }
         }
         public void Process()
@@ -283,7 +336,7 @@ namespace ParkingApp
     class Car
     {
         public int Id { get;private  set; }
-        public decimal Balance => 0;
+        public decimal Balance { get; set; }
         public CarType Ctype { get;private set; }
         public Car(int Id,CarType ct)
         {
