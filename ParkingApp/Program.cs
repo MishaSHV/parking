@@ -147,7 +147,15 @@ namespace ParkingApp
                 //processing
                 if(FindCarIndexById(Id,out index))
                 {
-                    ListCar[index] = null;
+                    if(((Car)ListCar[index]).Balance<0)
+                    {
+                        Console.WriteLine("You do not have enough funds in your account. Refill account please");
+                        Console.WriteLine($"Your car balance is: {((Car)ListCar[index]).Balance}");
+                    }
+                    else
+                    {
+                        ListCar[index] = null;
+                    }
                 }
                 else
                 {
@@ -353,6 +361,6 @@ namespace ParkingApp
     {
         public DateTime DTtransaction { get; set; }
         public int CarId { get; set; }
-        public decimal AmountMoney => 0;
+        public decimal AmountMoney { get; set; }
     }
 }
